@@ -199,7 +199,9 @@ rxx[1:4,1:5]
 
 ```
 
-Samplesheet
+Samplesheet.
+
+Need to delete "IE13-4".
 
 ```{r,ss}
 
@@ -207,6 +209,7 @@ ss <- read.table("rxfp3_ant_samplesheet.tsv",header=TRUE)
 ss <- ss[order(ss$FileBasename),]
 rownames(ss) <- ss$FileBasename
 ss$FileBasename=NULL
+ss <- ss[!rownames(ss)=="IE13-4",]
 head(ss)
 
 ```
@@ -242,11 +245,10 @@ plot(mds, xlab="Coordinate 1", ylab="Coordinate 2",
 text(mds, labels=rownames(mds) ,col="black")
 
 legend("bottomleft", inset=.02, title="tissue",
-   levels(as.factor(ss$BrainRegion)) , fill=unique(cols),  cex=1.2)
-
+   legend=unique(as.factor(ss$BrainRegion)) , fill=unique(cols),  cex=1.2)
 
 legend("left", inset=.02, title="treatment",
-   levels(as.factor(ss$Treatment)) , pch=unique(pchs),  cex=1.2)
+   legend=unique(as.factor(ss$Treatment)) , pch=unique(pchs),  cex=1.2)
 
 ```
 

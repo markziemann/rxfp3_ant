@@ -36,15 +36,15 @@ Data form: FASTQ (see same distribution shown in the table below)
 
 ID: from 105 – 164 only
 
-hyp = hypothalamus
+hyp = hypothalamus = 1
 
-hip = hippocampus
+hip = hippocampus = 2
 
-amg = amygdala
+amg = amygdala = 3
 
-pag = periaqueductal gray
+pag = periaqueductal gray = 4
 
-ni = nucleus incertus
+ni = nucleus incertus = 5
 
 | FileBasename | BrainRegion | Treatment | 
 | --- | --- | --- |
@@ -124,13 +124,16 @@ Multiqc was used to tabulate sequence quality, trimming and mapping statistics [
 
 Data were read into R v4.1.2 and duplicate lane data were aggregated, and transcript level counts were aggregated to gene level counts.
 
+Genes with an average of less than 10 reads across samples were excluded from downstream analysis.
+
+DESeq (1.32.0) was used with default settings to assay differential expression between control and treatment groups for all tissues [6].
 
 Pathway analysis was performed with reactome gene sets obtained from MSigDB and converted to mouse gene identifiers with the msigdbr package 
-(performed on 16-02-2022).
+(performed on 16-02-2022) [7,8,9].
 
+Differential pathway analysis was performed with the "mitch" bioconductor package [10].
 
-
-
+Genes and pathways with false discovery rate (FDR)<0.05 were considered significant.
 
 ```{r,packages}
 
@@ -152,7 +155,6 @@ suppressPackageStartupMessages({
 })
 
 ```
-
 
 ## Import read counts
 
@@ -191,7 +193,7 @@ rownames(txx2) <- txx2[,1]
 txx2[,1] = NULL
 xx <- as.data.frame(t(txx2))
 xx[1:4,1:5]
-
+write.table(xx,file="rxfp3_ant_counts.tsv",sep="\t",quote=FALSE)
 rxx <- xx/colSums(xx) *1e6
 rxx[1:4,1:5]
 
@@ -245,7 +247,6 @@ legend("bottomleft", inset=.02, title="tissue",
 
 legend("left", inset=.02, title="treatment",
    levels(as.factor(ss$Treatment)) , pch=unique(pchs),  cex=1.2)
-
 
 ```
 
@@ -468,6 +469,27 @@ in different tissues.
 
 ## References
 
+Bibliography
+
+1.	Babraham bioinformatics - FastQC A quality control tool for high throughput sequence data. Babraham.ac.uk, https://www.bioinformatics.babraham.ac.uk/projects/fastqc/ (accessed February 23, 2022).
+
+2.	Frankish A, Diekhans M, Jungreis I, et al. GENCODE 2021. Nucleic Acids Res 2021; 49: D916–D923.
+
+3.	Jiang H, Lei R, Ding S-W, et al. Skewer: a fast and accurate adapter trimmer for next-generation sequencing paired-end reads. BMC Bioinformatics 2014; 15: 182.
+
+4.	Bray NL, Pimentel H, Melsted P, et al. Near-optimal probabilistic RNA-seq quantification. Nat Biotechnol 2016; 34: 525–527.
+
+5.	Ewels P, Magnusson M, Lundin S, et al. MultiQC: summarize analysis results for multiple tools and samples in a single report. Bioinformatics 2016; 32: 3047–3048.
+
+6.	Love MI, Huber W, Anders S. Moderated estimation of fold change and dispersion for RNA-seq data with DESeq2. Genome Biol 2014; 15: 550.
+
+7.	Liberzon A, Birger C, Thorvaldsdóttir H, et al. The Molecular Signatures Database (MSigDB) hallmark gene set collection. Cell Syst 2015; 1: 417–425.
+
+8.	Jassal B, Matthews L, Viteri G, et al. The reactome pathway knowledgebase. Nucleic Acids Res 2020; 48: D498–D503.
+
+9.	Dolgalev I. MSigDB Gene Sets for Multiple Organisms in a Tidy Data Format [R package msigdbr version 7.4.1], https://cran.r-project.org/web/packages/msigdbr/index.html (2021, accessed February 23, 2022).
+
+10.	Kaspi A, Ziemann M. Mitch: Multi-contrast pathway enrichment for multi-omics and single-cell profiling data. BMC Genomics 2020; 21: 447.
 
 ## Session information
 

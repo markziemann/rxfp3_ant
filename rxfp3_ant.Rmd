@@ -413,7 +413,7 @@ mymds <- function(de,name,myss,mx) {
 # make plots for contrast 1
 maplot(dge1,"Cont1: Effect of treatment in hypothalamus")
 make_volcano(dge1,"Cont1: Effect of treatment in hypothalamus")
-make_volcano2(dge1,"Cont1: Effect of treatment in hypothalamus")
+#make_volcano2(dge1,"Cont1: Effect of treatment in hypothalamus")
 make_heatmap(de=dge1,name="Cont1: Effect of treatment in hypothalamus",myss=ss1,mx=xx1,n=50)
 make_heatmap2(de=dge1,name="Cont1: Effect of treatment in hypothalamus",myss=ss1,mx=xx1,n=50)
 mymds(de=dge1,name="Cont1: Effect of treatment in hypothalamus",myss=ss1,mx=xx1)
@@ -458,6 +458,8 @@ m1top_updn <- m1top_updn[order(m1top_updn)]
 par(mar=c(5,25,3,1))
 barplot(m1top_updn,horiz=TRUE,las=1,col="darkgray",xlab="Enrichment score",cex.names=0.8,xlim=c(-1,1))
 grid()
+
+```
 
 ## Conclusion
 

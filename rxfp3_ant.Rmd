@@ -281,7 +281,7 @@ the MDS plot.
 
 ss <- ss[grep("IE10",rownames(ss),invert=TRUE),]
 
-xx <- xx[grep("IE10",colnames(xx),invert=TRUE),]
+xx <- xx[,grep("IE10",colnames(xx),invert=TRUE)]
 
 mds <- cmdscale(dist(t(xx)))
 
@@ -353,7 +353,7 @@ xx4 <- xx4[which(rowMeans(xx4)>=10),]
 rpm4 <- xx4/colSums(xx4) *1e6
 dim(xx4)
 
-ss5 <- ss[which(ss$BrainRegion=="pag"),]
+ss5 <- ss[which(ss$BrainRegion=="ni"),]
 xx5 <- xx[which(colnames(xx) %in% rownames(ss5))]
 xx5 <- xx5[which(rowMeans(xx5)>=10),]
 rpm5 <- xx5/colSums(xx5) *1e6
@@ -362,6 +362,8 @@ dim(xx5)
 ```
 
 ## Differential expression with DESeq2
+
+### Contrast1 hypothalamus 
 
 ```{r,de01}
 
@@ -494,6 +496,8 @@ mymds(de=dge1,name="Cont1: Effect of treatment in hypothalamus",myss=ss1,mx=xx1)
 
 ```
 
+### Contrast 2 hippocampus 
+
 Now let's look at hippocampus.
 
 ```{r,contrast2}
@@ -518,6 +522,8 @@ make_heatmap2(de=dge2,name="Cont2: Effect of treatment in hippocampus",myss=ss2,
 mymds(de=dge2,name="Cont2: Effect of treatment in hippocampus",myss=ss2,mx=xx2)
 
 ```
+
+### Contrast 3 amygdala 
 
 Now let's look at amygdala.
 
@@ -544,6 +550,8 @@ mymds(de=dge3,name="Cont3: Effect of treatment in amygdala",myss=ss3,mx=xx3)
 
 ```
 
+### Contrast 4 periaqueductal gray 
+
 Now let's look at periaqueductal gray.
 
 ```{r,contrast4}
@@ -568,6 +576,8 @@ make_heatmap2(de=dge4,name="Cont4: Effect of treatment in PAG",myss=ss4,mx=xx4,n
 mymds(de=dge4,name="Cont4: Effect of treatment in PAG",myss=ss4,mx=xx4)
 
 ```
+
+### Contrast 5 nucleus incertus
 
 Now let's look at nucleus incertus.
 
@@ -594,13 +604,6 @@ mymds(de=dge5,name="Cont5: Effect of treatment in NI",myss=ss5,mx=xx5)
 
 ```
 
-
-
-
-
-
-
-
 ## Single contrast pathway analysis with mitch
 
 Firstly need to conduct mitch enrichment analysis for each contrast separately.
@@ -621,6 +624,8 @@ gt$gene <- sapply(strsplit(gt[,1]," "),"[[",2)
 
 
 ```
+
+Now run all the contrasts
 
 ```{r,mitch2}
 
@@ -741,13 +746,71 @@ grid()
 
 ```
 
+## multi-contrast mitch
+
+```{r,multimitch1}
+
+dl <- list("hyp"=dge1,"hip"=dge2,"amy"=dge3,"pag"=dge4,"ni"=dge5)
+mm <- mitch_import(dl, DEtype="deseq2",geneTable=gt)
+
+mmres1 <- mitch_calc(mm, genesets, priority="effect")
+
+head(mmres1$enrichment_result,20) %>% 
+  kbl(caption = "Top multi contrast enrichment results") %>%
+  kable_paper("hover", full_width = F)
+
+mitch_report(mmres1,outfile="multimitch1.html",overwrite=TRUE)
+write.table(mmres1$enrichment_result,file="multimitch1.tsv",quote=FALSE,sep="\t",row.names=FALSE)
+
+mmtop <- subset(mmres1$enrichment_result,p.adjustMANOVA<0.05)
+mmtop <- head(mmtop,25)
+
+mmx <- as.matrix(mmtop[,4:8])
+colnames(mmx) <- gsub("s.","",colnames(mmx))
+rownames(mmx) <- mmtop$set
+
+colfunc <- colorRampPalette(c("blue", "white", "red"))
+
+heatmap.2(mmx,trace="none",col=colfunc(25), margins = c(10,25), cexRow=0.7,
+  main=paste("Top ranked pathways" ) )
+
+
+```
+
 ## Conclusion
 
-There was some variability among samples in the hypothalamus, resulting in no statistically significant findings.
-However the heatmap does show some potentially interesting patterns.
-The gene pathway analysis did show some differences.
-The mitch software can perform multi-contrast pathway analysis and will be important to contrast the effect of the treatment
-in different tissues.
+IE10 was removed as the rRNA content was too high.
+
+With a FDR<0.05 threshold here are the number of DEGs
+
+* Hypothalamus: 0
+
+* Hippocampus: 4
+
+* Amygdala: 1
+
+* PAG: 20
+
+* NI: 4
+
+These numbers make sense as the MDS plots show some overlap between sample groups, ie: samples
+don't appear to cluster in distinct groups.
+
+There is some variability between samples, which I am guessing is related to the precision with which 
+the different tissues can be excised.
+This was the case in another experiment that I was involved with that was examining the hypothalamus
+in sand rats, which showed some pituitary gland contamination.
+
+This is a source of variation that can be problematic, although if it is identified,
+can be used to remove samples which suffer highest levels of contamination.
+
+If the contamination is less extensive, then it can be incorporated into the model so it can be 
+corrected for.
+
+Still, mitch was able to detect some trends.
+
+
+
 
 ## References
 

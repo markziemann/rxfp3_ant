@@ -1,5 +1,5 @@
 ---
-title: "ECHS1 KO RNA-seq"
+title: "RXFP3 Antagonist RNA-seq"
 author: "Mark Ziemann"
 date: "`r Sys.Date()`"
 output:
@@ -218,6 +218,8 @@ head(ss)
 
 Here I'll look at a few different quality control measures.
 
+Firstly, the number of reads assigned to genes, which should be >15M.
+
 ```{r,qc1,fig.height=7,fig.width=7}
 
 par(mar=c(5,8,3,1))
@@ -228,6 +230,26 @@ barplot(sums,horiz=TRUE,las=1,xlab="num reads",cex.names=0.8)
 abline(v=15000000,col="red")
 
 ```
+
+Ribosomal RNA.
+
+```{r,rrna}
+
+rrna <- read.table("https://raw.githubusercontent.com/markziemann/rxfp3_ant/main/rrna_res.tsv")
+
+myrrna <- rrna$V2/10000
+names(myrrna) <- rrna$V1
+
+barplot(myrrna,horiz=TRUE,las=1,xlab="percent rRNA reads",cex.names=0.8)
+
+barplot(head(myrrna,10),horiz=TRUE,las=1,xlab="percent rRNA reads",cex.names=1)
+
+```
+
+This work identified IE10-5 had a high degree of rRNA reads, but that other IE10
+samples also had an elevated rate of rRNA reads.
+
+It was agreed to remove these.
 
 ## MDS plot for all samples
 
@@ -252,11 +274,37 @@ legend("left", inset=.02, title="treatment",
 
 ```
 
+Now would be a good time to remove IE10 from the samplesheet and matrix and re-generate
+the MDS plot.
+
+```{r,ie10_remove}
+
+ss <- ss[grep("IE10",rownames(ss),invert=TRUE),]
+
+xx <- xx[grep("IE10",colnames(xx),invert=TRUE),]
+
+mds <- cmdscale(dist(t(xx)))
+
+cols <- as.numeric(as.factor(ss$BrainRegion))+1
+pchs <- as.numeric(factor(ss$Treatment))+17
+
+plot(mds, xlab="Coordinate 1", ylab="Coordinate 2",
+  type = "p",bty="n",pch=pchs, cex=4 ,col=cols )
+text(mds, labels=rownames(mds) ,col="black")
+
+legend("topleft", inset=.02, title="tissue",
+   legend=unique(as.factor(ss$BrainRegion)) , fill=unique(cols),  cex=1.2)
+
+legend("left", inset=.02, title="treatment",
+   legend=unique(as.factor(ss$Treatment)) , pch=unique(pchs),  cex=1.2)
+
+```
+
+As you can see, the two MDS plots look completely different.
+
 ## Correlation heatmap
 
 ```{r,correl1}
-
-heatmap.2(cor(xx),trace="n",main="Pearson correlation heatmap",margin=c(8,8),cexRow=0.7,cexCol=0.7)
 
 heatmap.2(cor(xx),trace="n",main="Pearson correlation heatmap",margin=c(8,8),cexRow=0.7,cexCol=0.7)
 
@@ -278,16 +326,40 @@ I will begin with hypothalamus and leave the rest to Craig's team.
 
 ```{r,filter}
 
+dim(xx)
+dim(ss)
+
 ss1 <- ss[which(ss$BrainRegion=="hyp"),]
 xx1 <- xx[which(colnames(xx) %in% rownames(ss1))]
-xx1 <- xx1[which(rowSums(xx1)>=10),]
+xx1 <- xx1[which(rowMeans(xx1)>=10),]
 rpm1 <- xx1/colSums(xx1) *1e6
-
-dim(xx)
 dim(xx1)
 
-```
+ss2 <- ss[which(ss$BrainRegion=="hip"),]
+xx2 <- xx[which(colnames(xx) %in% rownames(ss2))]
+xx2 <- xx2[which(rowMeans(xx2)>=10),]
+rpm2 <- xx2/colSums(xx2) *1e6
+dim(xx2)
 
+ss3 <- ss[which(ss$BrainRegion=="amy"),]
+xx3 <- xx[which(colnames(xx) %in% rownames(ss3))]
+xx3 <- xx3[which(rowMeans(xx3)>=10),]
+rpm3 <- xx3/colSums(xx3) *1e6
+dim(xx3)
+
+ss4 <- ss[which(ss$BrainRegion=="pag"),]
+xx4 <- xx[which(colnames(xx) %in% rownames(ss4))]
+xx4 <- xx4[which(rowMeans(xx4)>=10),]
+rpm4 <- xx4/colSums(xx4) *1e6
+dim(xx4)
+
+ss5 <- ss[which(ss$BrainRegion=="pag"),]
+xx5 <- xx[which(colnames(xx) %in% rownames(ss5))]
+xx5 <- xx5[which(rowMeans(xx5)>=10),]
+rpm5 <- xx5/colSums(xx5) *1e6
+dim(xx5)
+
+```
 
 ## Differential expression with DESeq2
 
@@ -408,7 +480,7 @@ mymds <- function(de,name,myss,mx) {
     type = "p",bty="n",pch=19, cex=4 ,col=csc )
   text(mds, labels=rownames(mds) ,col="black")
   legend("topright", inset=.02, title="treatment",
-    levels(as.factor(ss$Treatment)) , pch=19, col=unique(csc),  cex=1.4)
+    legend=unique(as.factor(ss$Treatment)) , pch=19, col=unique(csc),  cex=1.4)
 }
 
 
@@ -421,6 +493,112 @@ make_heatmap2(de=dge1,name="Cont1: Effect of treatment in hypothalamus",myss=ss1
 mymds(de=dge1,name="Cont1: Effect of treatment in hypothalamus",myss=ss1,mx=xx1)
 
 ```
+
+Now let's look at hippocampus.
+
+```{r,contrast2}
+
+dds <- DESeqDataSetFromMatrix(countData = xx2 , colData = ss2, design = ~ Treatment )
+res <- DESeq(dds)
+z <- results(res)
+vsd <- vst(dds, blind=FALSE)
+zz <- cbind(as.data.frame(z),assay(vsd))
+dge <- as.data.frame(zz[order(zz$pvalue),])
+dge[1:20,1:6] %>% kbl(caption = "Top gene expression differences for contrast 2: Effect of treatment in hippocampus") %>%
+  kable_paper("hover", full_width = F)
+dge2 <- dge
+d2up <- rownames(subset(dge2,padj <= 0.05 & log2FoldChange > 0))
+d2dn <- rownames(subset(dge2,padj <= 0.05 & log2FoldChange < 0))
+write.table(dge2,file="dge2.tsv",quote=FALSE,sep="\t")
+
+maplot(dge2,"Cont2: Effect of treatment in hippocampus")
+make_volcano(dge2,"Cont2: Effect of treatment in hippocampus")
+make_heatmap(de=dge2,name="Cont2: Effect of treatment in hippocampus",myss=ss2,mx=xx2,n=50)
+make_heatmap2(de=dge2,name="Cont2: Effect of treatment in hippocampus",myss=ss2,mx=xx2,n=50)
+mymds(de=dge2,name="Cont2: Effect of treatment in hippocampus",myss=ss2,mx=xx2)
+
+```
+
+Now let's look at amygdala.
+
+```{r,contrast3}
+
+dds <- DESeqDataSetFromMatrix(countData = xx3 , colData = ss3, design = ~ Treatment )
+res <- DESeq(dds)
+z <- results(res)
+vsd <- vst(dds, blind=FALSE)
+zz <- cbind(as.data.frame(z),assay(vsd))
+dge <- as.data.frame(zz[order(zz$pvalue),])
+dge[1:20,1:6] %>% kbl(caption = "Top gene expression differences for contrast 3: Effect of treatment in amygdala") %>%
+  kable_paper("hover", full_width = F)
+dge3 <- dge
+d3up <- rownames(subset(dge3,padj <= 0.05 & log2FoldChange > 0))
+d3dn <- rownames(subset(dge3,padj <= 0.05 & log2FoldChange < 0))
+write.table(dge3,file="dge3.tsv",quote=FALSE,sep="\t")
+
+maplot(dge3,"Cont3: Effect of treatment in amygdala")
+make_volcano(dge3,"Cont3: Effect of treatment in amygdala")
+make_heatmap(de=dge3,name="Cont3: Effect of treatment in amygdala",myss=ss3,mx=xx3,n=50)
+make_heatmap2(de=dge3,name="Cont3: Effect of treatment in amygdala",myss=ss3,mx=xx3,n=50)
+mymds(de=dge3,name="Cont3: Effect of treatment in amygdala",myss=ss3,mx=xx3)
+
+```
+
+Now let's look at periaqueductal gray.
+
+```{r,contrast4}
+
+dds <- DESeqDataSetFromMatrix(countData = xx4 , colData = ss4, design = ~ Treatment )
+res <- DESeq(dds)
+z <- results(res)
+vsd <- vst(dds, blind=FALSE)
+zz <- cbind(as.data.frame(z),assay(vsd))
+dge <- as.data.frame(zz[order(zz$pvalue),])
+dge[1:20,1:6] %>% kbl(caption = "Top gene expression differences for contrast 4: Effect of treatment in periaqueductal gray") %>%
+  kable_paper("hover", full_width = F)
+dge4 <- dge
+d4up <- rownames(subset(dge4,padj <= 0.05 & log2FoldChange > 0))
+d4dn <- rownames(subset(dge4,padj <= 0.05 & log2FoldChange < 0))
+write.table(dge4,file="dge4.tsv",quote=FALSE,sep="\t")
+
+maplot(dge4,"Cont4: Effect of treatment in PAG")
+make_volcano(dge4,"Cont4: Effect of treatment in PAG")
+make_heatmap(de=dge4,name="Cont4: Effect of treatment in PAG",myss=ss4,mx=xx4,n=50)
+make_heatmap2(de=dge4,name="Cont4: Effect of treatment in PAG",myss=ss4,mx=xx4,n=50)
+mymds(de=dge4,name="Cont4: Effect of treatment in PAG",myss=ss4,mx=xx4)
+
+```
+
+Now let's look at nucleus incertus.
+
+```{r,contrast5}
+
+dds <- DESeqDataSetFromMatrix(countData = xx5 , colData = ss5, design = ~ Treatment )
+res <- DESeq(dds)
+z <- results(res)
+vsd <- vst(dds, blind=FALSE)
+zz <- cbind(as.data.frame(z),assay(vsd))
+dge <- as.data.frame(zz[order(zz$pvalue),])
+dge[1:20,1:6] %>% kbl(caption = "Top gene expression differences for contrast 5: Effect of treatment in nucleus incertus") %>%
+  kable_paper("hover", full_width = F)
+dge5 <- dge
+d5up <- rownames(subset(dge5,padj <= 0.05 & log2FoldChange > 0))
+d5dn <- rownames(subset(dge5,padj <= 0.05 & log2FoldChange < 0))
+write.table(dge5,file="dge5.tsv",quote=FALSE,sep="\t")
+
+maplot(dge5,"Cont5: Effect of treatment in NI")
+make_volcano(dge5,"Cont5: Effect of treatment in NI")
+make_heatmap(de=dge5,name="Cont5: Effect of treatment in NI",myss=ss5,mx=xx5,n=50)
+make_heatmap2(de=dge5,name="Cont5: Effect of treatment in NI",myss=ss5,mx=xx5,n=50)
+mymds(de=dge5,name="Cont5: Effect of treatment in NI",myss=ss5,mx=xx5)
+
+```
+
+
+
+
+
+
 
 
 ## Single contrast pathway analysis with mitch
@@ -441,6 +619,12 @@ names(genesets) <- gsub("_"," ",names(genesets))
 gt <- as.data.frame(rownames(xx))
 gt$gene <- sapply(strsplit(gt[,1]," "),"[[",2)
 
+
+```
+
+```{r,mitch2}
+
+# contrast1
 m1 <- mitch_import(dge1, DEtype="deseq2",geneTable=gt)
 mres1 <- mitch_calc(m1, genesets, priority="effect")
 head(mres1$enrichment_result,20) %>% kbl(caption = "Top gene pathway differences in contrast 1") %>% kable_paper("hover", full_width = F)
@@ -458,7 +642,101 @@ m1top_updn <- c(m1top_up,m1top_dn)
 m1top_updn <- m1top_updn[order(m1top_updn)]
 
 par(mar=c(5,25,3,1))
-barplot(m1top_updn,horiz=TRUE,las=1,col="darkgray",xlab="Enrichment score",cex.names=0.8,xlim=c(-1,1))
+barplot(m1top_updn,horiz=TRUE,las=1,col="darkgray",
+  xlab="Enrichment score",cex.names=0.8,xlim=c(-1,1),
+  main="Pathway changes in hypothalamus")
+grid()
+
+# contrast2
+m2 <- mitch_import(dge2, DEtype="deseq2",geneTable=gt)
+mres2 <- mitch_calc(m2, genesets, priority="effect")
+head(mres2$enrichment_result,20) %>% kbl(caption = "Top gene pathway differences in contrast 2") %>% kable_paper("hover", full_width = F)
+m2top <- subset(mres2$enrichment_result,p.adjustANOVA<0.05)
+m2up <- subset(m2top,s.dist>0)$set
+m2dn <- subset(m2top,s.dist<0)$set
+mitch_report(mres2,outfile="mitch2.html",overwrite=TRUE)
+write.table(mres2$enrichment_result,file="mitch2.tsv",quote=FALSE,sep="\t",row.names=FALSE)
+
+m2top_up <- head(subset(m2top,s.dist>0),10)[,"s.dist"]
+names(m2top_up) <- head(subset(m2top,s.dist>0),10)[,"set"]
+m2top_dn <- head(subset(m2top,s.dist<0),10)[,"s.dist"]
+names(m2top_dn) <- head(subset(m2top,s.dist<0),10)[,"set"]
+m2top_updn <- c(m2top_up,m2top_dn)
+m2top_updn <- m2top_updn[order(m2top_updn)]
+
+par(mar=c(5,25,3,1))
+barplot(m2top_updn,horiz=TRUE,las=1,col="darkgray",
+  xlab="Enrichment score",cex.names=0.8,xlim=c(-1,1), 
+  main="Pathway changes in hippocampus")
+grid()
+
+# contrast3
+m3 <- mitch_import(dge3, DEtype="deseq2",geneTable=gt)
+mres3 <- mitch_calc(m3, genesets, priority="effect")
+head(mres3$enrichment_result,20) %>% kbl(caption = "Top gene pathway differences in contrast 3") %>% kable_paper("hover", full_width = F)
+m3top <- subset(mres3$enrichment_result,p.adjustANOVA<0.05)
+m3up <- subset(m3top,s.dist>0)$set
+m3dn <- subset(m3top,s.dist<0)$set
+mitch_report(mres3,outfile="mitch3.html",overwrite=TRUE)
+write.table(mres3$enrichment_result,file="mitch3.tsv",quote=FALSE,sep="\t",row.names=FALSE)
+
+m3top_up <- head(subset(m3top,s.dist>0),10)[,"s.dist"]
+names(m3top_up) <- head(subset(m3top,s.dist>0),10)[,"set"]
+m3top_dn <- head(subset(m3top,s.dist<0),10)[,"s.dist"]
+names(m3top_dn) <- head(subset(m3top,s.dist<0),10)[,"set"]
+m3top_updn <- c(m3top_up,m3top_dn)
+m3top_updn <- m3top_updn[order(m3top_updn)]
+
+par(mar=c(5,25,3,1))
+barplot(m3top_updn,horiz=TRUE,las=1,col="darkgray",
+  xlab="Enrichment score",cex.names=0.8,xlim=c(-1,1),
+  main="Pathway changes in amygdala")
+grid()
+
+# contrast4
+m4 <- mitch_import(dge4, DEtype="deseq2",geneTable=gt)
+mres4 <- mitch_calc(m4, genesets, priority="effect")
+head(mres4$enrichment_result,20) %>% kbl(caption = "Top gene pathway differences in contrast 4") %>% kable_paper("hover", full_width = F)
+m4top <- subset(mres4$enrichment_result,p.adjustANOVA<0.05)
+m43up <- subset(m4top,s.dist>0)$set
+m4dn <- subset(m4top,s.dist<0)$set
+mitch_report(mres4,outfile="mitch4.html",overwrite=TRUE)
+write.table(mres4$enrichment_result,file="mitch4.tsv",quote=FALSE,sep="\t",row.names=FALSE)
+
+m4top_up <- head(subset(m4top,s.dist>0),10)[,"s.dist"]
+names(m4top_up) <- head(subset(m4top,s.dist>0),10)[,"set"]
+m4top_dn <- head(subset(m4top,s.dist<0),10)[,"s.dist"]
+names(m4top_dn) <- head(subset(m4top,s.dist<0),10)[,"set"]
+m4top_updn <- c(m4top_up,m4top_dn)
+m4top_updn <- m4top_updn[order(m4top_updn)]
+
+par(mar=c(5,25,3,1))
+barplot(m4top_updn,horiz=TRUE,las=1,col="darkgray",
+  xlab="Enrichment score",cex.names=0.8,xlim=c(-1,1),
+  main="Pathway changes in periaqueductal gray")
+grid()
+
+# contrast5
+m5 <- mitch_import(dge5, DEtype="deseq2",geneTable=gt)
+mres5 <- mitch_calc(m5, genesets, priority="effect")
+head(mres5$enrichment_result,20) %>% kbl(caption = "Top gene pathway differences in contrast 5") %>% kable_paper("hover", full_width = F)
+m5top <- subset(mres5$enrichment_result,p.adjustANOVA<0.05)
+m5up <- subset(m5top,s.dist>0)$set
+m5dn <- subset(m5top,s.dist<0)$set
+mitch_report(mres5,outfile="mitch5.html",overwrite=TRUE)
+write.table(mres5$enrichment_result,file="mitch5.tsv",quote=FALSE,sep="\t",row.names=FALSE)
+
+m5top_up <- head(subset(m5top,s.dist>0),10)[,"s.dist"]
+names(m5top_up) <- head(subset(m5top,s.dist>0),10)[,"set"]
+m5top_dn <- head(subset(m5top,s.dist<0),10)[,"s.dist"]
+names(m5top_dn) <- head(subset(m5top,s.dist<0),10)[,"set"]
+m5top_updn <- c(m5top_up,m5top_dn)
+m5top_updn <- m5top_updn[order(m5top_updn)]
+
+par(mar=c(5,25,3,1))
+barplot(m5top_updn,horiz=TRUE,las=1,col="darkgray",
+  xlab="Enrichment score",cex.names=0.8,xlim=c(-1,1),
+  main="Pathway changes in nucleus incertus")
 grid()
 
 ```

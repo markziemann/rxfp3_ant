@@ -46,7 +46,9 @@ pag = periaqueductal gray = 4
 
 ni = nucleus incertus = 5
 
-| FileBasename | BrainRegion | Treatment | 
+Sample 13-3 has been removed as it appears to be an outlier.
+
+| FileBasename | BrainRegion | Treatment |
 | --- | --- | --- |
 | IE11-1 | hyp | T |
 | IE12-1 | hyp | T |
@@ -65,13 +67,13 @@ ni = nucleus incertus = 5
 | IE12-2 | hip | T |
 | IE13-2 | hip | T |
 | IE14-2 | hip | T |
-| IE16-2 | hip | T | 
+| IE16-2 | hip | T |
 | IE17-2 | hip | C |
 | IE19-2 | hip | C |
 | IE21-2 | hip | C |
 | IE22-2 | hip | C |
 | IE23-2 | hip | C |
-| IE24-2 | hip | C | 
+| IE24-2 | hip | C |
 | IE10-3 | amy | T |
 | IE11-3 | amy | T |
 | IE13-3 | amy | T |
@@ -201,7 +203,7 @@ rxx[1:4,1:5]
 
 Samplesheet.
 
-Need to delete "IE13-4".
+Need to delete "IE13-4" and "IE13-3"
 
 ```{r,ss}
 
@@ -210,6 +212,7 @@ ss <- ss[order(ss$FileBasename),]
 rownames(ss) <- ss$FileBasename
 ss$FileBasename=NULL
 ss <- ss[!rownames(ss)=="IE13-4",]
+ss <- ss[!rownames(ss)=="IE13-3",]
 head(ss)
 
 ```
@@ -282,6 +285,8 @@ the MDS plot.
 ss <- ss[grep("IE10",rownames(ss),invert=TRUE),]
 
 xx <- xx[,grep("IE10",colnames(xx),invert=TRUE)]
+xx <- xx[,grep("IE13-4",colnames(xx),invert=TRUE)]
+xx <- xx[,grep("IE13-3",colnames(xx),invert=TRUE)]
 
 mds <- cmdscale(dist(t(xx)))
 
@@ -295,7 +300,7 @@ text(mds, labels=rownames(mds) ,col="black")
 legend("topleft", inset=.02, title="tissue",
    legend=unique(as.factor(ss$BrainRegion)) , fill=unique(cols),  cex=1.2)
 
-legend("left", inset=.02, title="treatment",
+legend("top", inset=.02, title="treatment",
    legend=unique(as.factor(ss$Treatment)) , pch=unique(pchs),  cex=1.2)
 
 ```
@@ -306,7 +311,8 @@ As you can see, the two MDS plots look completely different.
 
 ```{r,correl1}
 
-heatmap.2(cor(xx),trace="n",main="Pearson correlation heatmap",margin=c(8,8),cexRow=0.7,cexCol=0.7)
+heatmap.2(cor(xx),trace="n",main="Pearson correlation heatmap",
+  margin=c(6,6),cexRow=0.5,cexCol=0.5)
 
 ```
 
@@ -462,7 +468,7 @@ make_heatmap <- function(de,name,myss,mx,n=30){
 
 make_heatmap2 <- function(de,name,myss,mx,n=30){
   colfunc <- colorRampPalette(c("blue", "white", "red"))
-  csc <- myss$Treatment  
+  csc <- myss$Treatment
   csc <- gsub("C","orange",csc)
   csc <- gsub("T","gray",csc)
   mxn <- mx/rowSums(mx)*1000000
@@ -772,7 +778,7 @@ rownames(mmx) <- mmtop$set
 colfunc <- colorRampPalette(c("blue", "white", "red"))
 
 heatmap.2(mmx,trace="none",col=colfunc(25), margins = c(10,25), cexRow=0.7,
-  main=paste("Top ranked pathways" ) )
+   cexCol=0.8, main=paste("Top ranked pathways" ) )
 
 
 ```
